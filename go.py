@@ -1,7 +1,7 @@
-import os
 from slack_bolt import App
 from dotenv import load_dotenv
 import datetime as dt
+import os
 import pandas as pd
 
 load_dotenv()
@@ -9,6 +9,7 @@ load_dotenv()
 TOKEN = os.getenv('SLACK_BOT_TOKEN')
 SIGNING_SECRET = os.getenv('SIGNING_SECRET')
 SHEET_ID = os.getenv('SCHEDULE_SHEET_ID')
+
 NASTAVNIK_ON_DUTY_COMMAND = '/nastavnik-on-duty'
 NUMBERS_ROW = 'Unnamed: 1'
 NAMES_ROW = 'Unnamed: 2'
@@ -18,31 +19,22 @@ MENTORS: dict = {}
 
 app = App(token=TOKEN, signing_secret=SIGNING_SECRET)
 
+# Номера строк с именами наставников
+rows = [5, 6, 7, 8]
+
 
 @app.command(NASTAVNIK_ON_DUTY_COMMAND)
 def post_to_slack(ack, say, command):
     ack()
+    schedule = parse_schedule()
     today = current_date()
-    say(nastavnik(today))
+    nastavnik_on_duty = nastavnik(schedule, today)
 
+    answer = 'Праздник или выходной -- никто не дежурит.'
+    if nastavnik_on_duty is not None:
+        answer = f'Сегодня дежурит {nastavnik_on_duty}!'
 
-def get_nastavnik_rows():
-    """Вычисляет число наставников и сохраняет номера
-    соответствующих строк."""
-    num = 0
-    rows = []
-    mentors_numbers = df.get(NUMBERS_ROW)
-    for i in range(len(mentors_numbers)):
-        cur_val = mentors_numbers[i]
-        if str(cur_val).isdigit():
-            cur_number = int(cur_val)
-            if cur_number > num:
-                rows.append(i)
-                num = cur_number
-
-    print('Найдено наставников: ', len(rows))
-
-    return rows
+    say(answer)
 
 
 def current_date():
@@ -51,7 +43,7 @@ def current_date():
     return float(f'{dt.date.today().day}.{dt.date.today().month}')
 
 
-def nastavnik(today):
+def nastavnik(df, today):
     """Возвращает имя дежурного наставника. Ну или ничего не возвращает."""
     # Строка с датами
     dates = df.iloc[DATES_ROW]
@@ -80,20 +72,23 @@ def nastavnik(today):
     return None
 
 
-if __name__ == "__main__":
+def parse_schedule():
     # Файл длинный, увеличим число колонок, которые сохраним в CSV
     pd.options.display.max_columns = 999
 
-    df = pd.read_csv(
+    schedule = pd.read_csv(
         f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv')
 
-    rows = get_nastavnik_rows()
-    mentors = df.get(NAMES_ROW)
+    mentors = schedule.get(NAMES_ROW)
 
     # Заполняем словарь, в котором ключом является номер строки наставника,
     # а значением - его имя.
     for row in rows:
         MENTORS[row] = mentors.iloc[row]
 
-    # Погнали
-    app.start(port=int(os.environ.get("PORT", 3000)))
+    return schedule
+
+
+if __name__ == "__main__":
+    # Понеслась
+    app.start()
