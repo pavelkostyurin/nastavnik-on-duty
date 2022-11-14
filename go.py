@@ -20,15 +20,14 @@ MENTORS: dict = {}
 app = App(token=TOKEN, signing_secret=SIGNING_SECRET)
 
 # Номера строк с именами наставников
-rows = [5, 6, 7, 8]
+rows = [6, 7, 8, 9]
 
 
 @app.command(NASTAVNIK_ON_DUTY_COMMAND)
 def post_to_slack(ack, say, command):
     ack()
     schedule = parse_schedule()
-    today = current_date()
-    nastavnik_on_duty = nastavnik(schedule, today)
+    nastavnik_on_duty = nastavnik(schedule, current_date())
 
     answer = 'Праздник или выходной -- никто не дежурит.'
     if nastavnik_on_duty is not None:
